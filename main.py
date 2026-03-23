@@ -22,7 +22,7 @@ import soundfile as sf
 from scipy.io.wavfile import write, read
 import numpy
 import whisper
-from ollama import Client
+from llm_client_openai import OpenAIClient
 from TTS.api import TTS
 import emoji
 import markdown
@@ -150,7 +150,7 @@ class ThinkThread(StoppableThread):
         self.main_thread = None
         self.query = None
         self.model = whisper.load_model("base.en", device = 'cpu') # base.en, small.en
-        self.client = Client("http://localhost:11434")
+        self.client = OpenAIClient(model=self.chat_model, base_url="http://localhost:11434")
         self.chat_model = 'llama3.2:3b'
         self.context = []
         self.context_length = 4096
@@ -167,11 +167,11 @@ class ThinkThread(StoppableThread):
                         self.context.append({"role": "user", "content": self.main_thread.message})
                         if len(self.context) > self.context_length:
                             self.context.pop(0)
-                        r = self.client.chat(model = self.chat_model, messages = self.context, think = False)
+                        r = self.client.chat(prompt=self.main_thread.message, history=self.context)
                         self.query = None
                         self.main_thread.response = r
                         self.main_thread.update_reply = True
-                        self.context.append({"role": r.message.role, "content": r.message.content})
+                        self.context.append({"role": "assistant", "content": r})
                         if len(self.context) > self.context_length:
                             self.context.pop(0)
                         TQ.put(str(r.message.content))
